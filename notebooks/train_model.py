@@ -87,7 +87,6 @@ size = os.path.getsize("models/model.pkl")
 print(f"Modele sauvegarde : models/model.pkl")
 print(f"Taille : {size / 1024:.1f} Ko")
 
-
 # Sauvegarder les encodeurs (indispensables pour les nouvelles donnees)
 joblib.dump(le_sexe, "models/encoder_sexe.pkl")
 joblib.dump(le_region, "models/encoder_region.pkl")
@@ -122,7 +121,6 @@ features = [
 nouveau_patient['age'],
 sexe_enc,
 nouveau_patient['temperature'],
-
 nouveau_patient['tension_sys'],
 int(nouveau_patient['toux']),
 int(nouveau_patient['fatigue']),
@@ -141,3 +139,52 @@ print(f"\nProbabilites par classe :")
 for classe, proba in zip(model_loaded.classes_, probas):
 	bar = '#' * int(proba * 30)
 	print(f" {classe:8s} : {proba:.1%} {bar}")
+
+importances = model.feature_importances_
+for name, imp in sorted(zip(feature_cols, importances),
+	key=lambda x: x[1], reverse=True):
+	print(f" {name:20s} : {imp:.3f}")
+
+#Exo2
+import joblib
+
+# Charger les artifacts
+model = joblib.load("models/model.pkl")
+le_sexe = joblib.load("models/encoder_sexe.pkl")
+le_region = joblib.load("models/encoder_region.pkl")
+
+print(le_region_loaded.classes_)
+
+def prevoir_patient(age, sexe, temperature, tension_sys, toux, fatigue, maux_tete, region):
+    # Encoder les variables catégoriques
+    sexe_enc = le_sexe.transform([sexe])[0]
+    region_enc = le_region.transform([region])[0]
+
+    features = [age, sexe_enc, temperature, tension_sys,
+                int(toux), int(fatigue), int(maux_tete), region_enc]
+
+    # Prédiction
+    diagnostic = model.predict([features])[0]
+    probas = model.predict_proba([features])[0]
+    proba_max = probas.max()
+
+    print(f"\nPatient : {sexe}, {age} ans — Région : {region}")
+    print(f"Diagnostic prédit : {diagnostic}")
+    print(f"Probabilité : {proba_max:.1%}")
+    for c, p in zip(model.classes_, probas):
+        print(f"  {c:8s} : {p:.1%}")
+
+# --- Trois patients fictifs ---
+# Jeune sans symptômes
+prevoir_patient(age=20, sexe='M', temperature=36.7, tension_sys=120,
+                toux=False, fatigue=False, maux_tete=False, region='Dakar')
+
+# Adulte avec forte fièvre
+prevoir_patient(age=35, sexe='F', temperature=39.8, tension_sys=110,
+                toux=True, fatigue=True, maux_tete=True, region='Kaolack')
+
+# Patient âgé avec toux mais sans fièvre
+prevoir_patient(age=70, sexe='M', temperature=37.0, tension_sys=130,
+                toux=True, fatigue=False, maux_tete=True, region='Kaolack')
+
+	
